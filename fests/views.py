@@ -21,4 +21,4 @@ def fests(request):
 	for obj in objs:
 		j.append(obj.get_dict())
 
-	return HttpResponse(json.dumps(j))
+	return HttpResponse(json.dumps(j), content_type="application/json")
