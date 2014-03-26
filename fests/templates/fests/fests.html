@@ -31,6 +31,7 @@
 }
 
 </style>
+
 <script type="text/template" id="tpl_fest_row">
 	<td><%= name %></td>
 	<td><%= country %></td>
@@ -67,7 +68,6 @@ $(function() {
 
 	var Fest = Backbone.Model.extend({
 		initialize: function() {
-			console.log("+ fest");
 		},
 
 		defaults: function() {
@@ -102,17 +102,13 @@ $(function() {
 		template: _.template($("#tpl_fest_row").html()),
 
 		render: function() {
-			var h = this.template(this.model.attributes);
-			this.$el.html(h);
+			this.$el.html(this.template(this.model.attributes));
 			return this;
 		},
 
 		initialize: function() {
 			this.listenTo(this.model, 'change', this.render);
 			this.listenTo(this.model, 'destroy', this.remove);
-			this.listenTo(this.model, 'remove', function() {
-				console.log('remove');
-			});
 		},
 		
 	});
@@ -155,10 +151,8 @@ $(function() {
 		},
 
 		do_sort: function(ev) {
-			console.log("do sort");
 			fests.params['sort_dest'] = $(ev.target).attr('data-param');
 			fests.params['sort'] = $(ev.target).parents(".th_sortable").attr('data-column');
-			console.log(fests.params);
 			
 			this.$("#fests_table tbody").html('');
 			fests.reset();
