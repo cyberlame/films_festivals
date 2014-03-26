@@ -10,4 +10,4 @@ python manage.py runserver
 
 How it looks?
 ===============
-[Imgur](http://i.imgur.com/dBY0wA2)
+![](http://i.imgur.com/dBY0wA2.png)
