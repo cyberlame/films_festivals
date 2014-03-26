@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>film festivals</title>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js
+"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/backbone.js/1.1.2/backbone-min.js"></script>
+
+<link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
+<style type="text/css">
+.th_sortable:hover {
+	cursor: pointer;
+	background: #f5f5f5;
+}
+
+.th_active {
+	background: #f5f5f5;
+}
+.th_sortable a:focus {
+
+}
+
+.th_sortable a:active {
+
+}
+
+</style>
+<script type="text/template" id="tpl_fest_row">
+	<td><%= name %></td>
+	<td><%= country %></td>
+	<td><%= start_date %></td>
+</script>
+
+<script type="text/template" id="tpl_th_sortable">
+	<%= org_html %>
+	<div class="btn-group">
+		<a class="dropdown-toggle" data-toggle="dropdown">
+			<i class="fa <%= sort_icon_class %>" style="color: <%= sort_icon_color %>"></i></a>
+		<ul class="sort_menu dropdown-menu">
+			<li><a data-param="asc" href="#">
+				<i class="fa fa-sort-alpha-asc"></i> sort ASC</a></li>
+			<li><a data-param="desc" href="#">
+				<i class="fa fa-sort-alpha-desc"></i> sort DESC</a></li>
+		</ul>
+	</div>
+</script>
+
+<script type="text/javascript">
+
+function params_to_qs(data) {
+	var ret = "";
+	var key;
+	for (key in data) {
+		if (ret != "") ret += "&";
+		ret += key + "=" + encodeURIComponent(data[key]);
+	}
+	return ret;
+}
+
+$(function() {
+
+	var Fest = Backbone.Model.extend({
+		initialize: function() {
+			console.log("+ fest");
+		},
+
+		defaults: function() {
+			return {
+				name: 'N/A',
+				country: 'XX',
+				start_date: 'N/A'
+			};
+		},
+	});
+
+	var FestList = Backbone.Collection.extend({
+		model: Fest,
+		
+		initialize: function() {
+			this.params = {
+				'sort': 'name',
+				'sort_dest': 'asc',
+				'filter': '',
+			};
+		},
+
+		url: function() {
+			return "{% url 'fests' %}?"+params_to_qs(this.params);
+		}
+	});
+
+	var fests = new FestList;
+
+	var FestView = Backbone.View.extend({
+		tagName: "tr",
+		template: _.template($("#tpl_fest_row").html()),
+
+		render: function() {
+			var h = this.template(this.model.attributes);
+			this.$el.html(h);
+			return this;
+		},
+
+		initialize: function() {
+			this.listenTo(this.model, 'change', this.render);
+			this.listenTo(this.model, 'destroy', this.remove);
+			this.listenTo(this.model, 'remove', function() {
+				console.log('remove');
+			});
+		},
+		
+	});
+
+	var ThSortableView = Backbone.View.extend({
+		tagName: "th",
+		template: _.template($("#tpl_th_sortable").html()),
+
+		initialize: function() {
+			this.org_html = this.$el.html();
+			this.column_name = this.$el.attr("data-column");
+			this.listenTo(fests, 'reset', this.render);
+		},
+
+		render: function() {
+			var ctx = {};
+			ctx['org_html'] = this.org_html;
+			ctx['sort_icon_class'] = 'fa-sort';
+			ctx['sort_icon_color'] = "#999";
+			
+			if (this.column_name == fests.params['sort']) {
+				ctx['sort_icon_class'] = "fa-sort-"+fests.params['sort_dest'];
+				ctx['sort_icon_color'] = "#a22";
+				this.$el.addClass("th_active");
+			} else {
+				this.$el.removeClass("th_active");
+			}
+
+			this.$el.html(this.template(ctx));
+			return this;
+		},
+
+		events: {
+			"click": function(ev) {
+				this.$el.find(".dropdown-toggle").dropdown('toggle');
+				ev.preventDefault();
+				ev.stopPropagation();
+			},
+			"click .sort_menu a": 'do_sort',
+		},
+
+		do_sort: function(ev) {
+			console.log("do sort");
+			fests.params['sort_dest'] = $(ev.target).attr('data-param');
+			fests.params['sort'] = $(ev.target).parents(".th_sortable").attr('data-column');
+			console.log(fests.params);
+			
+			this.$("#fests_table tbody").html('');
+			fests.reset();
+			fests.fetch();
+			return false;
+		},
+	});
+
+	var AppView = Backbone.View.extend({
+		el: $("#app"),
+
+		initialize: function() {
+			this.listenTo(fests, 'add', this.add_one);
+			this.listenTo(fests, 'reset', this.add_all);
+			this.listenTo(fests, 'all', this.render);
+			fests.fetch();
+		}, 
+		
+		events: {
+			"click #apply_filter": 'apply_filter',
+			"click #reset_filter": 'reset_filter',
+		},
+
+		render: function() {
+		},
+
+		add_one: function(fest) {
+			var view = new FestView({model:fest});
+			this.$("#fests_table tbody").append(view.render().el);
+		},
+
+		add_all: function() {
+			this.$("#fests_table tbody").html('');
+			fests.each(this.add_one, this);
+		},
+
+		apply_filter: function() {
+			this.$("#fests_table tbody").html('');
+			fests.params['filter'] = this.$("#filter").val();
+			fests.reset();
+			fests.fetch();
+		},
+		
+		reset_filter: function(ev) {
+			this.$("#filter").val("");
+			this.apply_filter();
+		},
+	});
+
+	var app_view = new AppView;
+	
+	$(".th_sortable").each(function() {
+		var th = new ThSortableView({el:$(this)});
+		th.render();
+	});
+});
+
+</script>
+</head>
+
+<body style="padding-top: 20px">
+<div id="app" class="container">
+
+
+<div style="margin-bottom: 20px">
+	<div class="input-group" style="width: 520px">
+
+	<input id="filter" class="form-control" type="text" placeholder="name filter">
+	<div class="input-group-btn">
+	<button id="apply_filter" type="button" class="btn btn-default">
+		<span class="glyphicon glyphicon-ok"></span> apply</button>
+	<button id="reset_filter" type="button" class="btn btn-default">
+		<span class="glyphicon glyphicon-remove"></span> reset</button>
+	</div>
+	</div>
+</div>
+
+
+<div>
+<table id="fests_table" class="table table-bordered">
+	<thead>
+		<th data-column="name" class="th_sortable">name</th>
+		<th>country</th>
+		<th data-column="start_date" class="th_sortable">start date</th>
+	</thead>
+	<tbody></tbody>
+</table>
+</div>
+
+
+</div> <!-- #app .container -->
+</body>
+</html> 
