@@ -11,8 +11,6 @@ def fests(request):
 	if request.GET.get('sort_dest', 'asc') == 'desc':
 		sort = "-"+sort
 
-	print sort
-
 	objs = Fest.objects.all()
 	f = request.GET.get("filter")
 	if f:
